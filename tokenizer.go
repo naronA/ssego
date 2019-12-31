@@ -1,0 +1,36 @@
+package ssego
+
+import (
+	"bufio"
+	"bytes"
+	"unicode"
+)
+
+type Tokenizer struct{}
+
+func NewTokenizer() *Tokenizer {
+	return &Tokenizer{}
+}
+
+func replace(r rune) rune {
+	// 英数字以外だったら捨てる
+	if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && !unicode.IsNumber(r) {
+		return -1
+	}
+
+	// 大文字を小文字に変換する
+	return unicode.ToLower(r)
+}
+
+// io.Readerから読んだデータをトークンに分割する関数
+func (t *Tokenizer) SplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	advance, token, err = bufio.ScanWords(data, atEOF)
+	if err == nil && token != nil {
+		token = bytes.Map(replace, token)
+		if len(token) == 0 {
+			token = nil
+		}
+	}
+
+	return
+}
