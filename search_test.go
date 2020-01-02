@@ -6,7 +6,8 @@ import (
 )
 
 func TestSearchTopK(t *testing.T) {
-	s := NewSearcher("testdata/index", &TFIDFScore{})     // searcherの初期化
+	docStats := NewDocumentStas()
+	s := NewSearcher("testdata/index", docStats)          // searcherの初期化
 	actual := s.SearchTopK([]string{"quarrel", "sir"}, 1) // 検索の実行
 
 	expected := &TopDocs{2, []*ScoreDoc{{2, 1.9657842846620868}}}

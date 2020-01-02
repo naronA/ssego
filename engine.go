@@ -70,7 +70,7 @@ func (e *Engine) Search(query string, k int) ([]*SearchResult, error) {
 	terms := e.tokenizer.TextToWordSequence(query)
 
 	// 検索を実行
-	docs := NewSearcher(e.indexDir, &TFIDFScore{}).SearchTopK(terms, k)
+	docs := NewSearcher(e.indexDir, e.documentStats).SearchTopK(terms, k)
 
 	// タイトルを取得
 	results := make([]*SearchResult, 0, k)

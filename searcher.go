@@ -7,13 +7,13 @@ import (
 
 // 検索処理を担う構造体Searcher
 type Searcher struct {
-	indexReader *IndexReader // インデクス読み取り器
-	cursors     []*Cursor    // ポスティングリストのポインタ配列
-	scorer      Scorer
+	indexReader   *IndexReader // インデクス読み取り器
+	cursors       []*Cursor    // ポスティングリストのポインタ配列
+	documentStats *DocumentStats
 }
 
-func NewSearcher(path string, scorer *TFIDFScore) *Searcher {
-	return &Searcher{indexReader: NewIndexReader(path), scorer: scorer}
+func NewSearcher(path string, docStats *DocumentStats) *Searcher {
+	return &Searcher{indexReader: NewIndexReader(path), documentStats: docStats}
 }
 
 // 検索を実行し、スコアが高い順にK件結果を返す
@@ -51,6 +51,7 @@ func (s *Searcher) search(query []string) []*ScoreDoc {
 	// 結果を格納する構造体の初期化
 	docs := make([]*ScoreDoc, 0)
 
+	scorer := &TFIDFScore{indexReader: s.indexReader, cursors: s.cursors}
 	// 最も短いポスティングリストをたどり終えるまで繰り返す
 	for !c.Empty() {
 		var nextDocID DocumentID
@@ -75,7 +76,7 @@ func (s *Searcher) search(query []string) []*ScoreDoc {
 			// 結果を格納
 			docs = append(docs, &ScoreDoc{
 				docID: c.DocID(),
-				score: s.calcScore(),
+				score: scorer.CalcScore(),
 			})
 			c.Next()
 		}
@@ -106,39 +107,45 @@ func (s *Searcher) openCursors(query []string) int {
 	return len(cursors)
 }
 
-func (s *Searcher) calcScore() float64 {
-	var score float64
-	for i := 0; i < len(s.cursors); i++ {
-		termFreq := s.cursors[i].Posting().TermFrequency
-		docCount := s.cursors[i].postingsList.Len()
-		totalDocCount := s.indexReader.totalDocCount()
-		score += calcTF(termFreq) * calcIDF(totalDocCount, docCount)
-	}
-	return score
-}
-
 type Scorer interface {
-	CalcScore(s *Searcher) float64
+	CalcScore() float64
 }
 
-type TFIDFScore struct{}
+type TFIDFScore struct {
+	indexReader *IndexReader // インデクス読み取り器
+	cursors     []*Cursor    // ポスティングリストのポインタ配列
+}
 
-func (t TFIDFScore) CalcScore(s *Searcher) float64 {
+func (t TFIDFScore) CalcScore() float64 {
 	var score float64
-	for i := 0; i < len(s.cursors); i++ {
-		termFreq := s.cursors[i].Posting().TermFrequency
-		docCount := s.cursors[i].postingsList.Len()
-		totalDocCount := s.indexReader.totalDocCount()
+	for i := 0; i < len(t.cursors); i++ {
+		termFreq := t.cursors[i].Posting().TermFrequency
+		docCount := t.cursors[i].postingsList.Len()
+		totalDocCount := t.indexReader.totalDocCount()
 		score += calcTF(termFreq) * calcIDF(totalDocCount, docCount)
 	}
 	return score
 
 }
 
-type BM25Score struct{}
+type BM25Score struct {
+	indexReader *IndexReader // インデクス読み取り器
+	cursors     []*Cursor    // ポスティングリストのポインタ配列
+}
 
-func (b BM25Score) CalcScore(s *Searcher) float64 {
-	return 0
+func (b BM25Score) CalcScore() float64 {
+	var score float64
+	// s.documentStats[]
+	for i := 0; i < len(b.cursors); i++ {
+		// docID := s.cursors[i].DocID()
+		// termCount := s.documentStats.TermCounts[docID]
+		termFreq := b.cursors[i].Posting().TermFrequency
+		docCount := b.cursors[i].postingsList.Len()
+		totalDocCount := b.indexReader.totalDocCount()
+		score += calcTF(termFreq) * calcIDF(totalDocCount, docCount)
+	}
+	return score
+
 }
 
 func calcTF(termCount int) float64 {
