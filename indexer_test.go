@@ -21,7 +21,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	actual := indexer.index
-	expected := &TransposeIndex{
+	expected := &Index{
 		Dictionary: map[string]PostingsList{
 			"better": NewPostingsList(
 				NewPosting(2, 1),

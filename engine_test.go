@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -79,15 +80,14 @@ func TestCreateIndex(t *testing.T) {
 	}
 
 	testCases := []testCase{
-		{"_indeX_data/_0.dc", "3"},
+		{"_index_data/_0.dc", "3"},
 		{
 			"_index_data/better",
 			`[{"DocID":2,"Positions":[1],"TermFrequency":1}]`,
 		},
 		{
 			"_index_data/no",
-			`[{"DocID":2,"Positions":[0],"TermFrequency":1},
-			 {"DocID":3,"Positions":[2],"TermFrequency":1}`,
+			`[{"DocID":2,"Positions":[0],"TermFrequency":1},{"DocID":3,"Positions":[2],"TermFrequency":1}]`,
 		},
 		{
 			"_index_data/do",
@@ -95,17 +95,15 @@ func TestCreateIndex(t *testing.T) {
 		},
 		{
 			"_index_data/quarrel",
-			`[{"DocID":1,"Positions":[2],"TermFrequency":1},
-			 {"DocID":3,"Positions":[0],"TermFrequency":1}`,
+			`[{"DocID":1,"Positions":[2],"TermFrequency":1},{"DocID":3,"Positions":[0],"TermFrequency":1}]`,
 		},
 		{
 			"_index_data/sir",
-			`[{"DocID":1,"Positions":[2],"TermFrequency":1},
-			 {"DocID":3,"Positions":[1,3],"TermFrequency":2}`,
+			`[{"DocID":1,"Positions":[3],"TermFrequency":1},{"DocID":3,"Positions":[1,3],"TermFrequency":2}]`,
 		},
 		{
 			"_index_data/you",
-			`[{"DocID":1,"Positions":[1],"TermFrequency":1}`,
+			`[{"DocID":1,"Positions":[1],"TermFrequency":1}]`,
 		},
 	}
 
@@ -129,5 +127,24 @@ func TestCreateIndex(t *testing.T) {
 				t.Errorf("got: %v\nwant: %v\n", got, want)
 			}
 		}()
+	}
+}
+
+func TestSearch(t *testing.T) {
+	engine := NewSearchEngine(testDB)
+	query := "Quarrel, sir."
+
+	actual, err := engine.Search(query, 5)
+	if err != nil {
+		t.Fatalf("failed searchTopK: %v", err)
+	}
+
+	expected := []*SearchResult{
+		{3, 1.754887502163469, "test3"},
+		{1, 1.1699250014423126, "test1"},
+	}
+
+	for !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("got: %v\nwant: %v\n", actual, expected)
 	}
 }

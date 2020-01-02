@@ -6,7 +6,7 @@ import (
 )
 
 type Indexer struct {
-	index     *TransposeIndex
+	index     *Index
 	tokenizer *Tokenizer
 }
 
@@ -19,15 +19,12 @@ func NewIndexer(tokenizer *Tokenizer) *Indexer {
 
 // ドキュメントをインデクスに追加する処理
 func (idxr *Indexer) update(docID DocumentID, reader io.Reader) {
-
 	// bufio.Scannerを使用することでファイルや標準入力などからデータを少しずつ読み込むことができる。
 	scanner := bufio.NewScanner(reader)
 	scanner.Split(idxr.tokenizer.SplitFunc) // 分割方法の指定
 	var position int
-
 	for scanner.Scan() {
 		term := scanner.Text() // 用語ごとに読み込み
-
 		// ポスティングリストの更新
 		if postingsList, ok := idxr.index.Dictionary[term]; !ok {
 			// termをキーとするポスティングリストが存在しない場合
@@ -38,7 +35,5 @@ func (idxr *Indexer) update(docID DocumentID, reader io.Reader) {
 		}
 		position++
 	}
-
 	idxr.index.TotalDocsCount++
-
 }

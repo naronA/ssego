@@ -21,7 +21,7 @@ func NewIndexWriter(path string) *IndexWriter {
 }
 
 // インデクスの永続化処理
-func (w *IndexWriter) Flush(index *TransposeIndex) error {
+func (w *IndexWriter) Flush(index *Index) error {
 	for term, postingsList := range index.Dictionary {
 		if err := w.postingsList(term, postingsList); err != nil {
 			fmt.Printf("failed to save %s postings list: %v", term, err)

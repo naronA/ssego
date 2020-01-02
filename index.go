@@ -40,22 +40,22 @@ type DocumentID int64
 //                   |- Positions このドキュメント内の用語の出現いち位置
 //                   +- TermFrequency ドキュメント内の用語の出現回数
 // 転置インデックス
-type TransposeIndex struct {
+type Index struct {
 	Dictionary     map[string]PostingsList // 辞書
 	TotalDocsCount int                     // ドキュメントの総数
 }
 
 // NewIndex create a new index
-func NewIndex() *TransposeIndex {
+func NewIndex() *Index {
 	dict := make(map[string]PostingsList) // 辞書
 
-	return &TransposeIndex{
+	return &Index{
 		Dictionary:     dict,
 		TotalDocsCount: 0,
 	}
 }
 
-func (idx *TransposeIndex) String() string {
+func (idx *Index) String() string {
 	var padding int
 
 	keys := make([]string, 0, len(idx.Dictionary))
@@ -157,6 +157,13 @@ func (pl *PostingsList) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (pl PostingsList) OpenCursor() *Cursor {
+	return &Cursor{
+		postingsList: &pl,
+		current:      pl.Front(),
+	}
+}
+
 // 用語が含まれているDocID, ドキュメント内の位置, 出現回数をまとめた構造体
 type Posting struct {
 	DocID         DocumentID // 単語が含まれているドキュメントのID
@@ -170,4 +177,39 @@ func NewPosting(docID DocumentID, positions ...int) *Posting {
 
 func (p Posting) String() string {
 	return fmt.Sprintf("(%v, %v, %v)", p.DocID, p.Positions, p.TermFrequency)
+}
+
+// --------------
+// Cursor構造体
+// --------------
+type Cursor struct {
+	postingsList *PostingsList // cursorがたどっているポスティングリストへの参照
+	current      *list.Element // 現在の読み込み位置
+}
+
+func (c *Cursor) Next() {
+	c.current = c.current.Next()
+}
+
+// id以上のドキュメントIDになるまでポインタを進める
+func (c *Cursor) NextDoc(id DocumentID) {
+	for !c.Empty() && c.DocID() < id {
+		c.Next()
+	}
+}
+
+func (c *Cursor) Empty() bool {
+	return c.current == nil
+}
+
+func (c *Cursor) Posting() *Posting {
+	return c.current.Value.(*Posting)
+}
+
+func (c *Cursor) DocID() DocumentID {
+	return c.current.Value.(*Posting).DocID
+}
+
+func (c *Cursor) String() string {
+	return fmt.Sprint(c.Posting())
 }
