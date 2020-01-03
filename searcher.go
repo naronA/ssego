@@ -9,17 +9,17 @@ import (
 type Searcher struct {
 	indexReader   *IndexReader // インデクス読み取り器
 	cursors       []*Cursor    // ポスティングリストのポインタ配列
-	documentStats *DocumentStats
+	documentStore *DocumentStore
 }
 
-func NewSearcher(path string, docStats *DocumentStats) *Searcher {
-	return &Searcher{indexReader: NewIndexReader(path), documentStats: docStats}
+func NewSearcher(path string, docStore *DocumentStore) *Searcher {
+	return &Searcher{indexReader: NewIndexReader(path), documentStore: docStore}
 }
 
 // 検索を実行し、スコアが高い順にK件結果を返す
 func (s *Searcher) SearchTopK(query []string, k int) *TopDocs {
 	// マッチするドキュメントを抽出しスコアを計算する
-	results := s.search(query)
+	results := s.search(query, "TFIDF")
 
 	// 結果をスコアの降順でソートする
 	sort.Slice(results, func(i, j int) bool {
@@ -37,7 +37,7 @@ func (s *Searcher) SearchTopK(query []string, k int) *TopDocs {
 	}
 }
 
-func (s *Searcher) search(query []string) []*ScoreDoc {
+func (s *Searcher) search(query []string, score string) []*ScoreDoc {
 	// カーソルの取得
 	// クエリに含まれる用語のポスティングリストが一つも存在しない場合、0件で終了する
 	if s.openCursors(query) == 0 {
@@ -51,7 +51,7 @@ func (s *Searcher) search(query []string) []*ScoreDoc {
 	// 結果を格納する構造体の初期化
 	docs := make([]*ScoreDoc, 0)
 
-	scorer := &TFIDFScore{indexReader: s.indexReader, cursors: s.cursors}
+	scorer := &Scorer{indexReader: s.indexReader, cursors: s.cursors}
 	// 最も短いポスティングリストをたどり終えるまで繰り返す
 	for !c.Empty() {
 		var nextDocID DocumentID
@@ -74,10 +74,26 @@ func (s *Searcher) search(query []string) []*ScoreDoc {
 			}
 		} else {
 			// 結果を格納
-			docs = append(docs, &ScoreDoc{
-				docID: c.DocID(),
-				score: scorer.CalcScore(),
-			})
+			switch score {
+
+			case "BM25":
+				termCount, _ := s.documentStore.fetchTermCount(c.DocID())
+				docs = append(docs, &ScoreDoc{
+					docID: c.DocID(),
+					score: scorer.CalcBM25(termCount),
+				})
+			case "TFIDF":
+				docs = append(docs, &ScoreDoc{
+					docID: c.DocID(),
+					score: scorer.CalcTFIDF(),
+				})
+			default:
+				docs = append(docs, &ScoreDoc{
+					docID: c.DocID(),
+					score: scorer.CalcTFIDF(),
+				})
+			}
+
 			c.Next()
 		}
 	}
@@ -92,7 +108,7 @@ func (s *Searcher) openCursors(query []string) int {
 		return 0
 	}
 
-	// ポスティングリストの短い順にソート
+	// 複数の検索ワードの中でポスティングリストの短い順にソート
 	sort.Slice(postings, func(i, j int) bool {
 		return postings[i].Len() < postings[j].Len()
 	})
@@ -107,16 +123,12 @@ func (s *Searcher) openCursors(query []string) int {
 	return len(cursors)
 }
 
-type Scorer interface {
-	CalcScore() float64
-}
-
-type TFIDFScore struct {
+type Scorer struct {
 	indexReader *IndexReader // インデクス読み取り器
 	cursors     []*Cursor    // ポスティングリストのポインタ配列
 }
 
-func (t TFIDFScore) CalcScore() float64 {
+func (t Scorer) CalcTFIDF() float64 {
 	var score float64
 	for i := 0; i < len(t.cursors); i++ {
 		termFreq := t.cursors[i].Posting().TermFrequency
@@ -128,20 +140,15 @@ func (t TFIDFScore) CalcScore() float64 {
 
 }
 
-type BM25Score struct {
-	indexReader *IndexReader // インデクス読み取り器
-	cursors     []*Cursor    // ポスティングリストのポインタ配列
-}
-
-func (b BM25Score) CalcScore() float64 {
+func (s Scorer) CalcBM25(termCount int) float64 {
 	var score float64
 	// s.documentStats[]
-	for i := 0; i < len(b.cursors); i++ {
+	for i := 0; i < len(s.cursors); i++ {
 		// docID := s.cursors[i].DocID()
 		// termCount := s.documentStats.TermCounts[docID]
-		termFreq := b.cursors[i].Posting().TermFrequency
-		docCount := b.cursors[i].postingsList.Len()
-		totalDocCount := b.indexReader.totalDocCount()
+		termFreq := s.cursors[i].Posting().TermFrequency
+		docCount := s.cursors[i].postingsList.Len()
+		totalDocCount := s.indexReader.totalDocCount()
 		score += calcTF(termFreq) * calcIDF(totalDocCount, docCount)
 	}
 	return score
@@ -157,7 +164,13 @@ func calcTF(termCount int) float64 {
 }
 
 // Inverse Document Frequency
-// 全ドキュメント数 N と 用語が含まれているドキュメント数 dfを用いてIDFを計算する
+// 総ドキュメント数 N と 用語が含まれているドキュメント数 dfを用いてIDFを計算する
 func calcIDF(N, df int) float64 {
 	return math.Log2(float64(N) / float64(df))
+}
+
+// 総単語数 N, 用語が含まれているドキュメント数 dfを用いてIDFを計算する
+func calcBM25IDF(N, df int) float64 {
+	x := (float64(N) - float64(df) + 0.5) / (float64(df) + 0.5)
+	return math.Log2(x)
 }

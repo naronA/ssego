@@ -19,7 +19,9 @@ func NewIndexReader(path string) *IndexReader {
 	return &IndexReader{path, cache, -1}
 }
 
+// 複数の検索キーワードtermsにマッチするpostingsを読み込んで[]*PostingsListを作成する
 func (r *IndexReader) postingsLists(terms []string) []*PostingsList {
+	// 複数のキーワードtermsなのでpostingsList"S"になる
 	postingsLists := make([]*PostingsList, 0, len(terms))
 	for _, term := range terms {
 		if postings := r.postings(term); postings != nil {
