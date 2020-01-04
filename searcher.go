@@ -10,16 +10,17 @@ type Searcher struct {
 	indexReader   *IndexReader // インデクス読み取り器
 	cursors       []*Cursor    // ポスティングリストのポインタ配列
 	documentStore *DocumentStore
+	score         string
 }
 
-func NewSearcher(path string, docStore *DocumentStore) *Searcher {
-	return &Searcher{indexReader: NewIndexReader(path), documentStore: docStore}
+func NewSearcher(path string, docStore *DocumentStore, score string) *Searcher {
+	return &Searcher{indexReader: NewIndexReader(path), documentStore: docStore, score: score}
 }
 
 // 検索を実行し、スコアが高い順にK件結果を返す
 func (s *Searcher) SearchTopK(query []string, k int) *TopDocs {
 	// マッチするドキュメントを抽出しスコアを計算する
-	results := s.search(query, "TFIDF")
+	results := s.search(query)
 
 	// 結果をスコアの降順でソートする
 	sort.Slice(results, func(i, j int) bool {
@@ -37,7 +38,7 @@ func (s *Searcher) SearchTopK(query []string, k int) *TopDocs {
 	}
 }
 
-func (s *Searcher) search(query []string, score string) []*ScoreDoc {
+func (s *Searcher) search(query []string) []*ScoreDoc {
 	// カーソルの取得
 	// クエリに含まれる用語のポスティングリストが一つも存在しない場合、0件で終了する
 	if s.openCursors(query) == 0 {
@@ -74,7 +75,7 @@ func (s *Searcher) search(query []string, score string) []*ScoreDoc {
 			}
 		} else {
 			// 結果を格納
-			switch score {
+			switch s.score {
 
 			case "BM25":
 				termCount, _ := s.documentStore.fetchTermCount(c.DocID())

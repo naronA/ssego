@@ -27,7 +27,7 @@ func search(c *cli.Context) error {
 		return err
 	}
 	query := c.Args().Get(0)
-	result, err := engine.Search(query, c.Int("number"))
+	result, err := engine.Search(query, c.Int("number"), "TFIDF")
 	if err != nil {
 		return err
 	}

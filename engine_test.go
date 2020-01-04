@@ -134,7 +134,7 @@ func TestSearch(t *testing.T) {
 	engine := NewSearchEngine(testDB)
 	query := "Quarrel, sir."
 
-	actual, err := engine.Search(query, 5)
+	actual, err := engine.Search(query, 5, "TFIDF")
 	if err != nil {
 		t.Fatalf("failed searchTopK: %v", err)
 	}

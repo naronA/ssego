@@ -67,16 +67,16 @@ func (e *Engine) Flush() error {
 	return writer.Flush(e.indexer.index)
 }
 
-func (e *Engine) Search(query string, k int) ([]*SearchResult, error) {
+func (e *Engine) Search(query string, k int, score string) ([]*SearchResult, error) {
 	// クエリをトークンに分割
 	terms := e.tokenizer.TextToWordSequence(query)
 
 	// 検索を実行
-	docs := NewSearcher(e.indexDir, e.documentStore).SearchTopK(terms, k)
+	searcher := NewSearcher(e.indexDir, e.documentStore, score).SearchTopK(terms, k)
 
 	// タイトルを取得
 	results := make([]*SearchResult, 0, k)
-	for _, result := range docs.scoreDocs {
+	for _, result := range searcher.scoreDocs {
 		title, err := e.documentStore.fetchTitle(result.docID)
 		if err != nil {
 			return nil, err
