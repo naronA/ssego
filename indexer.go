@@ -18,6 +18,10 @@ func NewIndexer(tokenizer *Tokenizer) *Indexer {
 }
 
 // ドキュメントをインデクスに追加する処理
+// ドキュメント本文を読み込んで、Tokenizerで分割
+// 分割した用語からポスティングリストを作成する
+// その用語のポスティングリストがすでに存在したらリストに追加する
+// 最後に総ドキュメント数をインクリメントする
 func (idxr *Indexer) update(docID DocumentID, reader io.Reader) {
 	// bufio.Scannerを使用することでファイルや標準入力などからデータを少しずつ読み込むことができる。
 	scanner := bufio.NewScanner(reader)

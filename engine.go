@@ -8,6 +8,11 @@ import (
 	"path/filepath"
 )
 
+// 検索エンジンとは？
+// トークン
+// インデクサ = ドキュメントからポスティングリストを作成する
+// ドキュメント管理機 = MySQLのdocumentテーブルモデル
+// インデクスのディレクトリパス
 type Engine struct {
 	tokenizer     *Tokenizer     // トークンの分割方法を決めるトークナイザ
 	indexer       *Indexer       // インデクス生成器

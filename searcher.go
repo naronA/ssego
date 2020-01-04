@@ -142,10 +142,7 @@ func (t Scorer) CalcTFIDF() float64 {
 
 func (s Scorer) CalcBM25(termCount int) float64 {
 	var score float64
-	// s.documentStats[]
 	for i := 0; i < len(s.cursors); i++ {
-		// docID := s.cursors[i].DocID()
-		// termCount := s.documentStats.TermCounts[docID]
 		termFreq := s.cursors[i].Posting().TermFrequency
 		docCount := s.cursors[i].postingsList.Len()
 		totalDocCount := s.indexReader.totalDocCount()
